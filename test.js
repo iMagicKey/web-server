@@ -2,7 +2,7 @@ const WebServer = require('./index')
 
 let server = new WebServer({
     assets: [
-        { route: '/assets/', dir: __dirname + '/' },
+        { route: '/assets', dir: __dirname + '/' },
         { route: '/LICENSE', file: __dirname + '/LICENSE' }
     ]
 })

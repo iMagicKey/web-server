@@ -12,7 +12,9 @@ class WebServer {
     }
 
     requestListener(req, res) {
-        let url = req.url
+        let [ url ] = req.url.split('?')
+        [ url ] = url.split('#')
+        
         let method = req.method
         
         let [ asset ] = this.assets.filter((asset) => {
