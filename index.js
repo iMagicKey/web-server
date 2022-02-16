@@ -13,10 +13,6 @@ class WebServer {
 
     requestListener(req, res) {
         let [ url ] = req.url.split('?')
-        [ url ] = url.split('#')
-        
-        let method = req.method
-        
         let [ asset ] = this.assets.filter((asset) => {
             return (asset.dir && url.indexOf(asset.route) == 0) || (asset.file && asset.route == url)
         })
@@ -42,7 +38,7 @@ class WebServer {
         }
 
         let [ route ] = this.routes.filter((route) => {
-            let methodCondition = route.methods.includes('*') || route.methods.includes(method)
+            let methodCondition = route.methods.includes('*') || route.methods.includes(req.method)
             let urlCondition = route.url == url
 
             return methodCondition && urlCondition
