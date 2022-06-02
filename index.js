@@ -1,6 +1,7 @@
 const http = require('http')
 const https = require('https')
 const fs = require('fs')
+const querystring = require('querystring')
 
 class WebServer {
     constructor(options) {
@@ -12,7 +13,12 @@ class WebServer {
     }
 
     requestListener(req, res) {
-        let [ url ] = req.url.split('?')
+        let [ url, params ] = req.url.split('?')
+        
+        if (params) {
+            req.params = querystring.parse(params)
+        }
+
         let [ asset ] = this.assets.filter((asset) => {
             return (asset.dir && url.indexOf(asset.route) == 0) || (asset.file && asset.route == url)
         })
@@ -43,6 +49,13 @@ class WebServer {
 
             return methodCondition && urlCondition
         })
+
+        res.redirect = function(code, location) {
+            this.writeHead(code, {
+                'Location': location,
+            })
+            return this.end()
+        }
 
         if (route) {
             return route.callback(req, res)
