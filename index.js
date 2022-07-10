@@ -57,6 +57,16 @@ class WebServer {
             return this.end()
         }
 
+        res.statusCode = function(code) {
+            res.statusCode = code
+
+            return this
+        }
+        
+        res.json = function(object) {
+            return this.end(JSON.stringify(object))
+        }
+
         if (route) {
             return route.callback(req, res)
         }
