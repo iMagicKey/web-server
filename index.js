@@ -57,7 +57,7 @@ class WebServer {
             return this.end()
         }
 
-        res.statusCode = function(code) {
+        res.status = function(code) {
             res.statusCode = code
 
             return this
