@@ -1,5 +1,5 @@
 const WebServer = require('./index')
-
+ 
 let server = new WebServer({
     assets: [
         { route: '/assets', dir: __dirname + '/' },
