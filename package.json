@@ -1,23 +1,25 @@
 {
-  "name": "web-server",
-  "version": "1.0.0",
-  "description": "Easy web-server",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/iMagicKey/web-server.git"
-  },
-  "keywords": [
-    "webserver",
-    "routes"
-  ],
-  "author": "iMagicKey",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/iMagicKey/web-server/issues"
-  },
-  "homepage": "https://github.com/iMagicKey/web-server#readme"
+    "name": "web-server",
+    "version": "1.0.0",
+    "description": "Easy web-server",
+    "main": "index.mjs",
+    "type": "module",
+    "scripts": {
+        "test": "node test.mjs"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/iMagicKey/web-server.git"
+    },
+    "keywords": [
+        "webserver",
+        "middleware",
+        "routes"
+    ],
+    "author": "iMagicKey",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/iMagicKey/web-server/issues"
+    },
+    "homepage": "https://github.com/iMagicKey/web-server#readme"
 }
