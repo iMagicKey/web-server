@@ -1,11 +1,11 @@
 {
-    "name": "web-server",
+    "name": "imagic-web-server",
     "version": "1.0.0",
     "description": "Easy web-server",
-    "main": "index.mjs",
+    "main": "src/index.js",
     "type": "module",
     "scripts": {
-        "test": "node test.mjs"
+        "test": "echo \"Error: no test specified\" && exit 1"
     },
     "repository": {
         "type": "git",
@@ -21,5 +21,8 @@
     "bugs": {
         "url": "https://github.com/iMagicKey/web-server/issues"
     },
-    "homepage": "https://github.com/iMagicKey/web-server#readme"
+    "homepage": "https://github.com/iMagicKey/web-server#readme",
+    "engines": {
+        "node": ">=18"
+    }
 }

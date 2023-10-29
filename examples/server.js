@@ -1,14 +1,12 @@
-import WebServer from './index.mjs'
-import { fileURLToPath } from 'url'
-import { dirname } from 'path'
+import WebServer from '../src/index.js'
+import { resolve } from 'path'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
+const ROOT_PATH = resolve()
 
 let server = new WebServer({
     assets: [
-        { route: '/assets', dir: __dirname + '/' },
-        { route: '/LICENSE', file: __dirname + '/LICENSE' },
+        { route: '/assets', dir: ROOT_PATH + '/' },
+        { route: '/LICENSE', file: ROOT_PATH + '/LICENSE' },
     ],
 })
 
