@@ -107,8 +107,8 @@ class WebServer {
         this.middlewares.push(middleware)
     }
 
-    listen(port) {
-        return this.server.listen(port)
+    listen(...args) {
+        return this.server.listen(args)
     }
 }
 
