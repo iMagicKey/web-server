@@ -108,7 +108,7 @@ class WebServer {
     }
 
     listen(...args) {
-        return this.server.listen(args)
+        return this.server.listen(...args)
     }
 }
 
