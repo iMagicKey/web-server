@@ -11,6 +11,7 @@ class WebServer {
         this.assets = options?.assets ?? []
         this.routes = []
         this.middlewares = []
+        this.nextRequestHandler = options?.nextRequestHandler ?? null
     }
 
     requestListener(req, res) {
@@ -86,6 +87,10 @@ class WebServer {
             if (route) {
                 return route.callback(req, res)
             }
+        }
+
+        if (this.nextRequestHandler) {
+            return this.nextRequestHandler(req, res)
         }
 
         res.writeHead(404)
