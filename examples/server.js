@@ -24,4 +24,9 @@ server.use((req, res, next) => {
 server.createRoute({ methods: ['GET'], url: '/hello' }, (req, res) => {
     res.end('Hello world')
 })
+
+server.createRoute({ methods: ['GET'], url: '/user/:id/:action' }, (req, res) => {
+    res.end(`Hello user with id: ${req.params.id} action: ${req.params.action}`)
+})
+
 server.listen(8080)

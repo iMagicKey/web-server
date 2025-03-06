@@ -77,15 +77,10 @@ class WebServer {
                 }
             }
         } else {
-            let [route] = this.routes.filter((route) => {
-                let methodCondition = route.methods.includes('*') || route.methods.includes(req.method)
-                let urlCondition = route.url == url
-
-                return methodCondition && urlCondition
-            })
-
-            if (route) {
-                return route.callback(req, res)
+            const matchedRoute = this.matchRoute(url, req.method)
+            if (matchedRoute) {
+                req.params = matchedRoute.params
+                return matchedRoute.callback(req, res)
             }
         }
 
@@ -95,6 +90,38 @@ class WebServer {
 
         res.writeHead(404)
         res.end(`404`)
+    }
+
+    matchRoute(url, method) {
+        for (let route of this.routes) {
+            let methodCondition = route.methods.includes('*') || route.methods.includes(method)
+            let regex = this.getRouteRegex(route.url)
+            let match = regex.exec(url)
+
+            if (methodCondition && match) {
+                let params = this.extractParams(route.url, match)
+                return { callback: route.callback, params }
+            }
+        }
+        return null
+    }
+
+    getRouteRegex(route) {
+        let regexString = route
+            .replace(/:\w+/g, '([\\w-]+)')
+            .replace(/\//g, '\\/')
+        return new RegExp(`^${regexString}$`)
+    }
+
+    extractParams(route, match) {
+        let paramNames = (route.match(/:\w+/g) || []).map((param) => param.slice(1))
+        let params = {}
+
+        paramNames.forEach((name, index) => {
+            params[name] = match[index + 1]
+        })
+
+        return params
     }
 
     createRoute(options, callback) {

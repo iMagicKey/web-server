@@ -1,6 +1,6 @@
 {
     "name": "imagic-web-server",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "description": "Easy web-server",
     "main": "src/index.js",
     "type": "module",
