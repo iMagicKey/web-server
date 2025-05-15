@@ -108,15 +108,16 @@ class WebServer {
 
     getRouteRegex(route) {
         let regexString = route
+            .replace(/:\w+\*/g, '(.*)')
             .replace(/:\w+/g, '([\\w-]+)')
             .replace(/\//g, '\\/')
         return new RegExp(`^${regexString}$`)
     }
 
     extractParams(route, match) {
-        let paramNames = (route.match(/:\w+/g) || []).map((param) => param.slice(1))
-        let params = {}
+        let paramNames = (route.match(/:\w+\*?|/g) || []).filter(Boolean).map((param) => param.replace(/^:/, '').replace(/\*$/, ''))
 
+        let params = {}
         paramNames.forEach((name, index) => {
             params[name] = match[index + 1]
         })
