@@ -107,10 +107,25 @@ class WebServer {
     }
 
     getRouteRegex(route) {
-        let regexString = route
-            .replace(/:\w+\*/g, '(.*)')
-            .replace(/:\w+/g, '([\\w-]+)')
-            .replace(/\//g, '\\/')
+        if (route === '*') {
+            return /^.*$/ // Match anything
+        }
+
+        const regexString = route
+            .split('/')
+            .map((segment) => {
+                if (segment.startsWith(':')) {
+                    const match = segment.match(/^:(\w+)(\(([^)]+)\))?(\*)?$/)
+                    if (match) {
+                        const pattern = match[3] || '[\\w-]+'
+                        const isWildcard = !!match[4]
+                        return isWildcard ? `(${pattern}(?:\\/.*)?)` : `(${pattern})`
+                    }
+                }
+                return segment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // Escape regex specials
+            })
+            .join('\\/')
+
         return new RegExp(`^${regexString}$`)
     }
 

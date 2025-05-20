@@ -1,114 +1,166 @@
 # imagic-web-server
 
-`imagic-web-server` is a lightweight and flexible Node.js web server module that provides a simple and extensible framework for serving web content and handling HTTP requests. It supports both HTTP and HTTPS, allows you to define custom routes and middlewares, and provides utilities for serving static assets. Below, you will find a comprehensive guide on how to use `imagic-web-server` with code examples for each of its features.
+`imagic-web-server` is a lightweight and flexible Node.js web server module that provides a powerful framework for building HTTP/HTTPS services with support for custom routes, middlewares, static assets, route parameters (including wildcards and regex), and dynamic routing.
+
+---
 
 ## Installation
 
-You can install the `imagic-web-server` module using npm or yarn:
+Install via npm:
 
 ```bash
 npm install imagic-web-server
 ```
 
+---
+
 ## Getting Started
 
-Here's how to create a basic web server instance using `imagic-web-server`:
-
 ```javascript
-import WebServer from 'imagic-web-server';
+import WebServer from 'imagic-web-server'
+import { resolve } from 'path'
 
-// Initialize a new HTTP server
+const ROOT_PATH = resolve()
+
 const server = new WebServer({
-https: false, // Set to true for HTTPS
-// Other server options (e.g., port, hostname) can be added here
-assets: [
-// Define your static assets configuration here (optional)
-// Example: { route: '/static', dir: 'public' }
-],
-});
+    https: false, // Set true to enable HTTPS with key/cert options
+    assets: [
+        { route: '/assets', dir: ROOT_PATH + '/public' },
+        { route: '/LICENSE', file: ROOT_PATH + '/LICENSE' },
+    ],
+})
 
-// Start the server on the specified port and hostname
+server.listen(8080, 'localhost', () => {
+    console.log('Server is running at http://localhost:8080')
+})
 ```
 
-To create an HTTP server, initialize a new WebServer instance with the desired options. You can specify whether you want to use HTTPS, set server options such as the port and hostname, and define static assets. You can add assets using the assets property, which is an array of asset configurations.
+---
 
-## Handling Requests
+## Features
 
-imagic-web-server provides a requestListener method to handle incoming HTTP requests. This method allows you to process requests and define routes and middlewares.
-```javascript
-server.requestListener = (req, res) => {
-  // Request handling logic here
-};
-```
-
-n the requestListener, you can access the req (request) and res (response) objects to handle the incoming request and generate the response.
-
-### Adding Custom Routes
-You can create custom routes using the createRoute method. A route is defined by an HTTP method, URL, and a callback function.
+### 1. **Custom Routes**
 
 ```javascript
-server.createRoute({ methods: ['GET'], url: '/my-route' }, (req, res) => {
-  // Handle the GET request for '/my-route'
-});
+server.createRoute({ methods: ['GET'], url: '/hello' }, (req, res) => {
+    res.end('Hello world')
+})
 ```
 
-In the example above, we create a custom route that listens for GET requests at the /my-route URL.
+### 2. **Route Parameters**
 
-### Adding Middlewares
-Middlewares are functions that can intercept and process requests before they reach the route handler. You can use the use method to add middlewares.
+Supports named params (`:id`), wildcards (`:rest*`), and regex:
+
+```javascript
+server.createRoute({ methods: ['GET'], url: '/user/:id/:action' }, (req, res) => {
+    const { id, action } = req.params
+    res.end(`User ID: ${id}, Action: ${action}`)
+})
+
+server.createRoute({ methods: ['GET'], url: '/api/:rest*' }, (req, res) => {
+    res.end(`REST URI: ${req.params.rest}`)
+})
+
+server.createRoute({ methods: ['GET'], url: '/number/:id(\\d+)' }, (req, res) => {
+    res.end(`Number ID: ${req.params.id}`)
+})
+```
+
+### 3. **Wildcard Catch-All**
+
+```javascript
+server.createRoute({ methods: ['*'], url: '*' }, (req, res) => {
+    res.status(404).end('Not Found')
+})
+```
+
+---
+
+## Middlewares
 
 ```javascript
 server.use((req, res, next) => {
-  // Middleware logic here
-  next();
-});
+    console.log(`[${req.method}] ${req.url}`)
+    next()
+})
+
+server.use((req, res, next) => {
+    if (Math.random() > 0.8) {
+        res.json({ code: 403, message: 'Forbidden' })
+    } else {
+        next()
+    }
+})
 ```
 
-The next function should be called to pass control to the next middleware or the route handler.
+Middlewares are executed in order before route handlers. Use `next()` to pass control.
 
-### Starting the Server
+---
 
-After configuring your server, you can start it using the listen method.
+## Static Assets
 
-```javascript
-server.listen(8080, 'localhost', () => {
-  console.log('Server is running on port 8080');
-});
-```
+Supports directory and file-level asset serving:
 
-In this example, the server listens on port 8080 and the 'localhost' hostname. You can change these values as needed.
-
-## Responding to Requests
-
-Inside the requestListener, you can use various response methods to send data back to the client. Here are some commonly used methods:
-
-### Redirect
-```javascript
-res.redirect(301, '/new-location');
-```
-
-### Set HTTP Status Code
-```javascript
-res.status(200);
-```
-### Send JSON
-```javascript
-res.json({ message: 'Hello, World!' });
-```
-
-### Handling Static Assets
-
-imagic-web-server allows you to serve static assets, such as HTML, CSS, and JavaScript files. Simply add the asset configurations when creating the WebServer instance.
 ```javascript
 assets: [
-  { route: '/static', dir: 'public' },
+    { route: '/assets', dir: 'public' },
+    { route: '/readme', file: 'README.md' },
 ]
 ```
 
-In this example, any request to /static will be served from the public directory.
-If the requested asset exists, it will be served. If not, a 404 response will be sent.
-Feel free to customize the asset configuration to match your project's structure.
+---
+
+## HTTPS Support
+
+```javascript
+import fs from 'fs'
+import WebServer from 'imagic-web-server'
+import { resolve } from 'path'
+
+const ROOT_PATH = resolve()
+
+const server = new WebServer({
+    port: 8080,
+    https: true,
+    key: fs.readFileSync('./path/to/key.pem'),
+    cert: fs.readFileSync('./path/to/cert.pem'),
+})
+```
+
+---
+
+## Response Helpers
+
+-   `res.status(code)` – set HTTP status code
+-   `res.json(data)` – send JSON
+-   `res.redirect(code, url)` – redirect
+-   `res.end(body)` – end response with body
+
+---
+
+## Route Matching Syntax
+
+| Syntax            | Example URL             | Matches                         |
+| ----------------- | ----------------------- | ------------------------------- |
+| `/user/:id`       | `/user/123`             | `{ id: '123' }`                 |
+| `/file/:name*`    | `/file/images/logo.png` | `{ name: 'images/logo.png' }`   |
+| `/:slug(\\w{3,})` | `/abc`                  | `{ slug: 'abc' }` if 3+ letters |
+| `*`               | Any unmatched route     | Used for 404 catch-all          |
+
+---
+
+## Example
+
+```javascript
+server.createRoute({ methods: ['GET'], url: '/health' }, (req, res) => {
+    res.json({ status: 'ok' })
+})
+```
+
+---
 
 ## Conclusion
 
-imagic-web-server is a versatile and easy-to-use web server module for Node.js. It enables you to create a custom HTTP server with routes, middlewares, and static asset serving. Use the provided examples and adapt them to your specific needs to build powerful web applications.
+`imagic-web-server` is a powerful utility for building flexible web servers with rich routing capabilities, middleware support, and static file handling. Ideal for small services, mock APIs, and embedded servers.
+
+> Fast to write. Easy to extend. Fully customizable.
