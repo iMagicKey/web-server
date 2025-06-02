@@ -66,7 +66,18 @@ server.createRoute({ methods: ['GET'], url: '/number/:id(\\d+)' }, (req, res) =>
 })
 ```
 
-### 3. **Wildcard Catch-All**
+### 3. **Query Parameters**
+
+You can access URL query parameters via `req.query`:
+
+```javascript
+server.createRoute({ methods: ['GET'], url: '/search' }, (req, res) => {
+    const { q, page = 1 } = req.query
+    res.end(`Search query: ${q}, Page: ${page}`)
+})
+```
+
+### 4. **Wildcard Catch-All**
 
 ```javascript
 server.createRoute({ methods: ['*'], url: '*' }, (req, res) => {
@@ -149,11 +160,37 @@ const server = new WebServer({
 
 ---
 
-## Example
+## Next.js Custom Server Integration Example
+
+You can use `imagic-web-server` as a custom HTTP/HTTPS server for Next.js with dynamic routing fallback:
 
 ```javascript
-server.createRoute({ methods: ['GET'], url: '/health' }, (req, res) => {
-    res.json({ status: 'ok' })
+import next from 'next'
+import path from 'path'
+import WebServer from 'imagic-web-server'
+
+const port = Number(process.env.WEB_PORT) || 3000
+const app = next({
+    customServer: true,
+    experimentalHttpsServer: true,
+    dev: process.env.APP_ENV !== 'live',
+    port,
+    dir: path.resolve('src'), // src dir with nextjs
+})
+
+await app.prepare()
+
+const server = new WebServer({
+    https: true, // or false for HTTP
+    key: fs.readFileSync('./path/to/key.pem'),
+    cert: fs.readFileSync('./path/to/cert.pem'),
+})
+
+// Pass Next.js request handler for unmatched routes
+server.nextRequestHandler = app.getRequestHandler()
+
+server.listen({ port }, () => {
+    console.log(`Server started on port ${port}`)
 })
 ```
 
@@ -161,6 +198,6 @@ server.createRoute({ methods: ['GET'], url: '/health' }, (req, res) => {
 
 ## Conclusion
 
-`imagic-web-server` is a powerful utility for building flexible web servers with rich routing capabilities, middleware support, and static file handling. Ideal for small services, mock APIs, and embedded servers.
+`imagic-web-server` is a powerful utility for building flexible web servers with rich routing capabilities, middleware support, and static file handling. Ideal for small services, mock APIs, embedded servers, and custom Next.js setups.
 
 > Fast to write. Easy to extend. Fully customizable.

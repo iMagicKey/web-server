@@ -15,11 +15,10 @@ class WebServer {
     }
 
     requestListener(req, res) {
-        let [url, params] = req.url.split('?')
+        let [url, query] = req.url.split('?')
 
-        if (params) {
-            req.params = querystring.parse(params)
-        }
+        req.query = querystring.parse(query)
+        req.params = {}
 
         res.redirect = function (code, location) {
             this.writeHead(code, {
@@ -30,11 +29,11 @@ class WebServer {
 
         res.status = function (code) {
             res.statusCode = code
-
             return this
         }
 
         res.json = function (object) {
+            this.setHeader('Content-Type', 'application/json')
             return this.end(JSON.stringify(object))
         }
 
@@ -55,7 +54,7 @@ class WebServer {
         let [url] = req.url.split('?')
 
         let [asset] = this.assets.filter((asset) => {
-            return (asset.dir && url.indexOf(asset.route) == 0) || (asset.file && asset.route == url)
+            return (asset.dir && url.indexOf(asset.route) === 0) || (asset.file && asset.route === url)
         })
 
         if (asset) {
@@ -89,17 +88,17 @@ class WebServer {
         }
 
         res.writeHead(404)
-        res.end(`404`)
+        res.end('404')
     }
 
     matchRoute(url, method) {
         for (let route of this.routes) {
-            let methodCondition = route.methods.includes('*') || route.methods.includes(method)
-            let regex = this.getRouteRegex(route.url)
-            let match = regex.exec(url)
+            const methodMatches = route.methods.includes('*') || route.methods.includes(method)
+            const regex = this.getRouteRegex(route.url)
+            const match = regex.exec(url)
 
-            if (methodCondition && match) {
-                let params = this.extractParams(route.url, match)
+            if (methodMatches && match) {
+                const params = this.extractParams(route.url, match)
                 return { callback: route.callback, params }
             }
         }
@@ -107,9 +106,7 @@ class WebServer {
     }
 
     getRouteRegex(route) {
-        if (route === '*') {
-            return /^.*$/ // Match anything
-        }
+        if (route === '*') return /^.*$/
 
         const regexString = route
             .split('/')
@@ -122,7 +119,7 @@ class WebServer {
                         return isWildcard ? `(${pattern}(?:\\/.*)?)` : `(${pattern})`
                     }
                 }
-                return segment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // Escape regex specials
+                return segment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
             })
             .join('\\/')
 
@@ -130,9 +127,9 @@ class WebServer {
     }
 
     extractParams(route, match) {
-        let paramNames = (route.match(/:\w+\*?|/g) || []).filter(Boolean).map((param) => param.replace(/^:/, '').replace(/\*$/, ''))
+        const paramNames = (route.match(/:\w+\*?|/g) || []).filter(Boolean).map((param) => param.replace(/^:/, '').replace(/\*$/, ''))
 
-        let params = {}
+        const params = {}
         paramNames.forEach((name, index) => {
             params[name] = match[index + 1]
         })
@@ -141,13 +138,12 @@ class WebServer {
     }
 
     createRoute(options, callback) {
-        let routeOptions = {
+        const routeOptions = {
             methods: ['*'],
             ...options,
-            callback: callback,
+            callback,
         }
         routeOptions.methods = routeOptions.methods.map((method) => method.toUpperCase())
-
         this.routes.push(routeOptions)
     }
 
