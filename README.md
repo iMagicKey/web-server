@@ -1,203 +1,213 @@
 # imagic-web-server
 
-`imagic-web-server` is a lightweight and flexible Node.js web server module that provides a powerful framework for building HTTP/HTTPS services with support for custom routes, middlewares, static assets, route parameters (including wildcards and regex), and dynamic routing.
+> Lightweight HTTP/HTTPS server with named route params, middleware, static assets, and response helpers.
 
----
-
-## Installation
-
-Install via npm:
+## Install
 
 ```bash
 npm install imagic-web-server
 ```
 
----
+## Quick Start
 
-## Getting Started
-
-```javascript
+```js
 import WebServer from 'imagic-web-server'
-import { resolve } from 'path'
 
-const ROOT_PATH = resolve()
+const server = new WebServer()
 
-const server = new WebServer({
-    https: false, // Set true to enable HTTPS with key/cert options
-    assets: [
-        { route: '/assets', dir: ROOT_PATH + '/public' },
-        { route: '/LICENSE', file: ROOT_PATH + '/LICENSE' },
-    ],
-})
-
-server.listen(8080, 'localhost', () => {
-    console.log('Server is running at http://localhost:8080')
-})
-```
-
----
-
-## Features
-
-### 1. **Custom Routes**
-
-```javascript
-server.createRoute({ methods: ['GET'], url: '/hello' }, (req, res) => {
-    res.end('Hello world')
-})
-```
-
-### 2. **Route Parameters**
-
-Supports named params (`:id`), wildcards (`:rest*`), and regex:
-
-```javascript
-server.createRoute({ methods: ['GET'], url: '/user/:id/:action' }, (req, res) => {
-    const { id, action } = req.params
-    res.end(`User ID: ${id}, Action: ${action}`)
-})
-
-server.createRoute({ methods: ['GET'], url: '/api/:rest*' }, (req, res) => {
-    res.end(`REST URI: ${req.params.rest}`)
-})
-
-server.createRoute({ methods: ['GET'], url: '/number/:id(\\d+)' }, (req, res) => {
-    res.end(`Number ID: ${req.params.id}`)
-})
-```
-
-### 3. **Query Parameters**
-
-You can access URL query parameters via `req.query`:
-
-```javascript
-server.createRoute({ methods: ['GET'], url: '/search' }, (req, res) => {
-    const { q, page = 1 } = req.query
-    res.end(`Search query: ${q}, Page: ${page}`)
-})
-```
-
-### 4. **Wildcard Catch-All**
-
-```javascript
-server.createRoute({ methods: ['*'], url: '*' }, (req, res) => {
-    res.status(404).end('Not Found')
-})
-```
-
----
-
-## Middlewares
-
-```javascript
 server.use((req, res, next) => {
-    console.log(`[${req.method}] ${req.url}`)
+    console.log(`${req.method} ${req.pathname}`)
     next()
 })
 
-server.use((req, res, next) => {
-    if (Math.random() > 0.8) {
-        res.json({ code: 403, message: 'Forbidden' })
-    } else {
-        next()
+server.createRoute({ url: '/api/users/:id', methods: ['GET'] }, (req, res) => {
+    res.json({ userId: req.params.id })
+})
+
+server.listen(3000, () => console.log('Listening on http://localhost:3000'))
+```
+
+## API
+
+### `new WebServer(options?)`
+
+Creates a web server instance. Does not bind a port until `listen()` is called.
+
+```ts
+new WebServer(options?: {
+    https?: boolean
+    key?: Buffer | string
+    cert?: Buffer | string
+    assets?: Array<AssetDir | AssetFile>
+    nextRequestHandler?: (req, res) => void
+})
+```
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `https` | `boolean` | `false` | Create an HTTPS server. Requires `key` and `cert` |
+| `key` | `Buffer \| string` | — | TLS private key (PEM). Required when `https: true` |
+| `cert` | `Buffer \| string` | — | TLS certificate (PEM). Required when `https: true` |
+| `assets` | `Array<AssetDir \| AssetFile>` | `[]` | Static file serving entries (see below) |
+| `nextRequestHandler` | `(req, res) => void` | — | Fallback handler for requests that match no route; used for Next.js custom server integration |
+
+**`AssetDir`** — serve an entire directory under a route prefix:
+```ts
+{ route: string, dir: string }
+// e.g. { route: '/static', dir: './public' }
+```
+
+**`AssetFile`** — serve a single file at a fixed route:
+```ts
+{ route: string, file: string }
+// e.g. { route: '/favicon.ico', file: './favicon.ico' }
+```
+
+---
+
+### `createRoute(options, callback): void`
+
+Registers a route handler.
+
+```ts
+createRoute(
+    options: {
+        url: string
+        methods?: string[]
+    },
+    callback: (req: EnhancedRequest, res: EnhancedResponse) => void
+): void
+```
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `url` | `string` | required | Route pattern (see route syntax below) |
+| `methods` | `string[]` | `['*']` | HTTP methods to match. `'*'` matches all methods |
+
+Routes are matched in registration order. The first match wins.
+
+---
+
+### `use(middleware): void`
+
+Adds a middleware function executed before route handlers on every request.
+
+```ts
+use(middleware: (req: EnhancedRequest, res: EnhancedResponse, next: () => void) => void): void
+```
+
+Middlewares run in the order they were registered. Call `next()` to proceed. If `next()` is not called, the request is terminated.
+
+---
+
+### `listen(...args): net.Server`
+
+Starts listening. Delegates directly to the underlying `node:http` (or `node:https`) `server.listen()`.
+
+```ts
+listen(port: number, callback?: () => void): net.Server
+listen(port: number, hostname: string, callback?: () => void): net.Server
+listen(options: object, callback?: () => void): net.Server
+```
+
+---
+
+### Request enhancements
+
+The following properties are set on every `req` object before middleware and route handlers run:
+
+| Property | Type | Description |
+|---|---|---|
+| `req.pathname` | `string` | URL path without query string (e.g. `/users/42`) |
+| `req.query` | `object` | Parsed query string parameters |
+| `req.params` | `object` | Route parameters extracted from the URL pattern |
+
+---
+
+### Response enhancements
+
+| Method | Signature | Description |
+|---|---|---|
+| `res.json(data)` | `(data: object) => void` | Sets `Content-Type: application/json`, serializes with `JSON.stringify`, calls `res.end()` |
+| `res.status(code)` | `(code: number) => res` | Sets `res.statusCode`; returns `res` for chaining |
+| `res.redirect(code, location)` | `(code: number, location: string) => void` | Sends a redirect response with `writeHead` + `end` |
+
+## Route Syntax
+
+Patterns are matched against `req.pathname` (path only, no query string).
+
+| Pattern | Example URL | `req.params` |
+|---|---|---|
+| `/users/:id` | `/users/42` | `{ id: '42' }` |
+| `/users/:id/posts/:postId` | `/users/1/posts/99` | `{ id: '1', postId: '99' }` |
+| `/files/:path*` | `/files/images/logo.png` | `{ path: 'images/logo.png' }` |
+| `/items/:id([0-9]+)` | `/items/123` | `{ id: '123' }` |
+| `/items/:id([0-9]+)` | `/items/abc` | no match |
+| `*` | any URL | catch-all (use for 404) |
+
+- `:param` — matches a single path segment (no slashes)
+- `:param*` — matches one or more segments including slashes
+- `:param(regex)` — matches a segment against a custom regular expression
+- `*` — matches any path unconditionally
+
+## Error Handling
+
+The library does not expose dedicated error types. Route handler and middleware errors are not caught internally — unhandled exceptions propagate to the Node.js process. Wrap your handlers in try/catch if needed:
+
+```js
+server.createRoute({ url: '/api/data', methods: ['GET'] }, async (req, res) => {
+    try {
+        const data = await fetchData()
+        res.json(data)
+    } catch (error) {
+        res.status(500).json({ error: error.message })
     }
 })
 ```
 
-Middlewares are executed in order before route handlers. Use `next()` to pass control.
+For a global 404, register a catch-all route last:
 
----
-
-## Static Assets
-
-Supports directory and file-level asset serving:
-
-```javascript
-assets: [
-    { route: '/assets', dir: 'public' },
-    { route: '/readme', file: 'README.md' },
-]
+```js
+server.createRoute({ url: '*', methods: ['*'] }, (req, res) => {
+    res.status(404).json({ error: 'Not Found' })
+})
 ```
 
----
+## Examples
 
-## HTTPS Support
+See [`examples/`](./examples/) for runnable scripts, including:
+- Basic HTTP server with routing and middleware
+- HTTPS setup with self-signed certificates
+- Static asset serving
+- Next.js custom server integration
 
-```javascript
-import fs from 'fs'
+```js
+// examples/server.js excerpt — HTTPS with assets
+import fs from 'node:fs'
 import WebServer from 'imagic-web-server'
-import { resolve } from 'path'
-
-const ROOT_PATH = resolve()
 
 const server = new WebServer({
-    port: 8080,
     https: true,
-    key: fs.readFileSync('./path/to/key.pem'),
-    cert: fs.readFileSync('./path/to/cert.pem'),
+    key: fs.readFileSync('./certs/key.pem'),
+    cert: fs.readFileSync('./certs/cert.pem'),
+    assets: [
+        { route: '/static', dir: './public' },
+        { route: '/favicon.ico', file: './public/favicon.ico' },
+    ],
 })
+
+server.use((req, res, next) => {
+    res.setHeader('X-Powered-By', 'imagic-web-server')
+    next()
+})
+
+server.createRoute({ url: '/api/health', methods: ['GET'] }, (req, res) => {
+    res.json({ status: 'ok' })
+})
+
+server.listen(443, () => console.log('HTTPS server running on port 443'))
 ```
 
----
+## License
 
-## Response Helpers
-
--   `res.status(code)` – set HTTP status code
--   `res.json(data)` – send JSON
--   `res.redirect(code, url)` – redirect
--   `res.end(body)` – end response with body
-
----
-
-## Route Matching Syntax
-
-| Syntax            | Example URL             | Matches                         |
-| ----------------- | ----------------------- | ------------------------------- |
-| `/user/:id`       | `/user/123`             | `{ id: '123' }`                 |
-| `/file/:name*`    | `/file/images/logo.png` | `{ name: 'images/logo.png' }`   |
-| `/:slug(\\w{3,})` | `/abc`                  | `{ slug: 'abc' }` if 3+ letters |
-| `*`               | Any unmatched route     | Used for 404 catch-all          |
-
----
-
-## Next.js Custom Server Integration Example
-
-You can use `imagic-web-server` as a custom HTTP/HTTPS server for Next.js with dynamic routing fallback:
-
-```javascript
-import next from 'next'
-import path from 'path'
-import WebServer from 'imagic-web-server'
-
-const port = Number(process.env.WEB_PORT) || 3000
-const app = next({
-    customServer: true,
-    experimentalHttpsServer: true,
-    dev: process.env.APP_ENV !== 'live',
-    port,
-    dir: path.resolve('src'), // src dir with nextjs
-})
-
-await app.prepare()
-
-const server = new WebServer({
-    https: true, // or false for HTTP
-    key: fs.readFileSync('./path/to/key.pem'),
-    cert: fs.readFileSync('./path/to/cert.pem'),
-})
-
-// Pass Next.js request handler for unmatched routes
-server.nextRequestHandler = app.getRequestHandler()
-
-server.listen({ port }, () => {
-    console.log(`Server started on port ${port}`)
-})
-```
-
----
-
-## Conclusion
-
-`imagic-web-server` is a powerful utility for building flexible web servers with rich routing capabilities, middleware support, and static file handling. Ideal for small services, mock APIs, embedded servers, and custom Next.js setups.
-
-> Fast to write. Easy to extend. Fully customizable.
+MIT

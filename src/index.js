@@ -1,7 +1,31 @@
-import http from 'http'
-import https from 'https'
-import fs from 'fs'
-import querystring from 'querystring'
+import http from 'node:http'
+import https from 'node:https'
+import fs from 'node:fs'
+import path from 'node:path'
+
+const MIME_TYPES = {
+    '.html': 'text/html',
+    '.css': 'text/css',
+    '.js': 'text/javascript',
+    '.json': 'application/json',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif',
+    '.svg': 'image/svg+xml',
+    '.ico': 'image/x-icon',
+    '.txt': 'text/plain',
+    '.pdf': 'application/pdf',
+    '.mp4': 'video/mp4',
+    '.webm': 'video/webm',
+    '.mp3': 'audio/mpeg',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2',
+    '.ttf': 'font/ttf',
+    '.otf': 'font/otf',
+    '.xml': 'application/xml',
+    '.zip': 'application/zip',
+}
 
 class WebServer {
     constructor(options) {
@@ -14,28 +38,30 @@ class WebServer {
         this.nextRequestHandler = options?.nextRequestHandler ?? null
     }
 
-    requestListener(req, res) {
-        let [url, query] = req.url.split('?')
-
-        req.query = querystring.parse(query)
-        req.params = {}
-
+    _setupResponse(res) {
+        if (res.json) return
         res.redirect = function (code, location) {
-            this.writeHead(code, {
-                Location: location,
-            })
+            this.writeHead(code, { Location: location })
             return this.end()
         }
-
         res.status = function (code) {
             res.statusCode = code
             return this
         }
-
         res.json = function (object) {
             this.setHeader('Content-Type', 'application/json')
             return this.end(JSON.stringify(object))
         }
+    }
+
+    requestListener(req, res) {
+        const [pathname, query] = req.url.split('?')
+
+        req.pathname = pathname
+        req.query = query ? Object.fromEntries(new URLSearchParams(query)) : {}
+        req.params = {}
+
+        this._setupResponse(res)
 
         const runMiddleware = (index) => {
             if (index < this.middlewares.length) {
@@ -51,7 +77,7 @@ class WebServer {
     }
 
     handleRequest(req, res) {
-        let [url] = req.url.split('?')
+        const url = req.pathname
 
         let [asset] = this.assets.filter((asset) => {
             return (asset.dir && url.indexOf(asset.route) === 0) || (asset.file && asset.route === url)
@@ -65,22 +91,27 @@ class WebServer {
                 filepath = asset.file
             }
 
-            if (fs.existsSync(filepath)) {
-                let stats = fs.statSync(filepath)
-                if (stats.isFile()) {
-                    let readStream = fs.createReadStream(filepath)
-                    readStream.on('open', () => {
-                        readStream.pipe(res)
-                    })
-                    return
+            const readStream = fs.createReadStream(filepath)
+            readStream.on('error', (err) => {
+                if (err.code === 'ENOENT' || err.code === 'EISDIR') {
+                    res.writeHead(404)
+                    res.end('404')
+                } else {
+                    res.writeHead(500)
+                    res.end('500')
                 }
-            }
-        } else {
-            const matchedRoute = this.matchRoute(url, req.method)
-            if (matchedRoute) {
-                req.params = matchedRoute.params
-                return matchedRoute.callback(req, res)
-            }
+            })
+            readStream.on('open', () => {
+                res.setHeader('Content-Type', MIME_TYPES[path.extname(filepath)] || 'application/octet-stream')
+                readStream.pipe(res)
+            })
+            return
+        }
+
+        const matchedRoute = this.matchRoute(url, req.method)
+        if (matchedRoute) {
+            req.params = matchedRoute.params
+            return matchedRoute.callback(req, res)
         }
 
         if (this.nextRequestHandler) {
@@ -94,8 +125,7 @@ class WebServer {
     matchRoute(url, method) {
         for (let route of this.routes) {
             const methodMatches = route.methods.includes('*') || route.methods.includes(method)
-            const regex = this.getRouteRegex(route.url)
-            const match = regex.exec(url)
+            const match = route.regex.exec(url)
 
             if (methodMatches && match) {
                 const params = this.extractParams(route.url, match)
@@ -144,6 +174,7 @@ class WebServer {
             callback,
         }
         routeOptions.methods = routeOptions.methods.map((method) => method.toUpperCase())
+        routeOptions.regex = this.getRouteRegex(routeOptions.url)
         this.routes.push(routeOptions)
     }
 

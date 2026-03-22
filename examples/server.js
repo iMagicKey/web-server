@@ -1,87 +1,43 @@
-// Example of using the custom WebServer class with regex-based routing
-
+// examples/server.js
 import WebServer from '../src/index.js'
-import { resolve } from 'path'
 
-const ROOT_PATH = resolve()
+const server = new WebServer({})
 
-// Create the server instance
-const server = new WebServer({
-    // Example of static assets (disabled here for simplicity)
-    assets: [
-        { route: '/assets', dir: ROOT_PATH + '/' },
-        { route: '/LICENSE', file: ROOT_PATH + '/LICENSE' },
-    ],
-})
-
-// Middleware that logs each request
+// Middleware: simple request logger
 server.use((req, res, next) => {
-    console.log(`[${req.method}] ${req.url}`)
+    console.log(`${req.method} ${req.url}`)
     next()
 })
 
-// Middleware that randomly blocks some requests
-server.use((req, res, next) => {
-    if (Math.random() > 0.8) {
-        return res.status(403).json({
-            code: 403,
-            message: 'Access Denied by Middleware',
-        })
-    }
-    next()
+// JSON API route
+server.createRoute({ url: '/api/hello', methods: ['GET'] }, (req, res) => {
+    res.json({ message: 'Hello from imagic-web-server!', query: req.query })
 })
 
-/**
- * Basic route with a parameter
- * Example: GET /user/123
- */
-server.createRoute({ methods: ['GET'], url: '/user/:id' }, (req, res) => {
-    res.end(`User ID: ${req.params.id}`)
+// Route with URL params
+server.createRoute({ url: '/api/users/:id', methods: ['GET'] }, (req, res) => {
+    res.json({ userId: req.params.id })
 })
 
-/**
- * Route with regex: only numeric product IDs
- * Example: GET /product/456 (valid)
- *          GET /product/abc (invalid)
- */
-server.createRoute({ methods: ['GET'], url: '/product/:id(\\d+)' }, (req, res) => {
-    res.end(`Numeric Product ID: ${req.params.id}`)
+// POST route
+server.createRoute({ url: '/api/echo', methods: ['POST'] }, (req, res) => {
+    let body = ''
+    req.on('data', (chunk) => (body += chunk))
+    req.on('end', () => {
+        try {
+            res.json({ received: JSON.parse(body) })
+        } catch {
+            res.status(400).json({ error: 'Invalid JSON' })
+        }
+    })
 })
 
-/**
- * Route with slug format (lowercase letters, numbers, dashes)
- * Example: GET /post/hello-world-2025
- */
-server.createRoute({ methods: ['GET'], url: '/post/:slug([a-z0-9\\-]+)' }, (req, res) => {
-    res.end(`Post Slug: ${req.params.slug}`)
+// Redirect
+server.createRoute({ url: '/old', methods: ['GET'] }, (req, res) => {
+    res.redirect(301, '/api/hello')
 })
 
-/**
- * Wildcard route: captures everything after /api/
- * Example: GET /api/users/list → rest = "users/list"
- */
-server.createRoute({ methods: ['GET'], url: '/api/:rest*' }, (req, res) => {
-    res.end(`API Path: ${req.params.rest}`)
-})
-
-/**
- * Route with multiple regex parameters
- * Example: GET /report/2025/05 → year = "2025", month = "05"
- */
-server.createRoute({ methods: ['GET'], url: '/report/:year(\\d{4})/:month(\\d{2})' }, (req, res) => {
-    const { year, month } = req.params
-    res.end(`Monthly Report for ${year}-${month}`)
-})
-
-/**
- * Catch-all fallback route for unmatched paths
- */
-server.createRoute({ methods: ['*'], url: '*' }, (req, res) => {
-    res.status(404).end('404 Not Found')
-})
-
-// Start the server
-const PORT = 8080
-server.listen(PORT, () => {
-    console.log(`🚀 Server running at http://localhost:${PORT}`)
+server.listen(3000, '127.0.0.1', () => {
+    console.log('Server running on http://127.0.0.1:3000')
+    console.log('Try: curl http://127.0.0.1:3000/api/hello?name=world')
 })
