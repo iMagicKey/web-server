@@ -1,13 +1,17 @@
 {
     "name": "imagic-web-server",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "description": "Build HTTP servers with routing, middleware, static file serving, and response helpers",
     "type": "module",
     "exports": {
         ".": "./src/index.js",
         "./package.json": "./package.json"
     },
-    "files": ["src", "README.md", "LICENSE"],
+    "files": [
+        "src",
+        "README.md",
+        "LICENSE"
+    ],
     "sideEffects": false,
     "scripts": {
         "test": "node --test ./tests/**/*.test.js",
