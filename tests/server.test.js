@@ -375,6 +375,97 @@ describe('WebServer', () => {
         })
     })
 
+    describe('HTTP methods — PUT / DELETE / PATCH', () => {
+        let server
+        let port
+
+        before(async () => {
+            const ws = new WebServer({})
+            ws.createRoute({ url: '/resource', methods: ['PUT'] }, (req, res) => {
+                res.json({ method: req.method })
+            })
+            ws.createRoute({ url: '/resource', methods: ['DELETE'] }, (req, res) => {
+                res.json({ method: req.method })
+            })
+            ws.createRoute({ url: '/resource', methods: ['PATCH'] }, (req, res) => {
+                res.json({ method: req.method })
+            })
+            await new Promise((resolve) =>
+                ws.listen(0, '127.0.0.1', () => {
+                    port = ws.server.address().port
+                    server = ws.server
+                    resolve()
+                })
+            )
+        })
+
+        after(() => new Promise((resolve) => server.close(resolve)))
+
+        it('routes PUT /resource', async () => {
+            const res = await makeRequest(port, '/resource', { method: 'PUT' })
+            expect(res.status).to.equal(200)
+            expect(JSON.parse(res.body).method).to.equal('PUT')
+        })
+
+        it('routes DELETE /resource', async () => {
+            const res = await makeRequest(port, '/resource', { method: 'DELETE' })
+            expect(res.status).to.equal(200)
+            expect(JSON.parse(res.body).method).to.equal('DELETE')
+        })
+
+        it('routes PATCH /resource', async () => {
+            const res = await makeRequest(port, '/resource', { method: 'PATCH' })
+            expect(res.status).to.equal(200)
+            expect(JSON.parse(res.body).method).to.equal('PATCH')
+        })
+
+        it('method mismatch returns 404 for PUT on GET-only route', async () => {
+            const ws2 = new WebServer({})
+            ws2.createRoute({ url: '/get-only', methods: ['GET'] }, (req, res) => res.end('ok'))
+            await new Promise((resolve) => ws2.listen(0, '127.0.0.1', resolve))
+            const p2 = ws2.server.address().port
+            const r = await makeRequest(p2, '/get-only', { method: 'PUT' })
+            expect(r.status).to.equal(404)
+            await new Promise((resolve) => ws2.server.close(resolve))
+        })
+    })
+
+    describe('error handling — 500 on route throw', () => {
+        let server
+        let port
+
+        before(async () => {
+            const ws = new WebServer({})
+            ws.createRoute({ url: '/boom', methods: ['GET'] }, () => {
+                throw new Error('intentional crash')
+            })
+            ws.createRoute({ url: '/ok', methods: ['GET'] }, (req, res) => {
+                res.end('fine')
+            })
+            await new Promise((resolve) =>
+                ws.listen(0, '127.0.0.1', () => {
+                    port = ws.server.address().port
+                    server = ws.server
+                    resolve()
+                })
+            )
+        })
+
+        after(() => new Promise((resolve) => server.close(resolve)))
+
+        it('returns 500 when route handler throws', async () => {
+            const res = await makeRequest(port, '/boom')
+            expect(res.status).to.equal(500)
+        })
+
+        it('server continues handling requests after a route throws', async () => {
+            await makeRequest(port, '/boom')
+            const res = await makeRequest(port, '/ok')
+            expect(res.status).to.equal(200)
+            expect(res.body).to.equal('fine')
+        })
+    })
+
     describe('pathname stored on req', () => {
         let server
         let port

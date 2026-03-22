@@ -111,7 +111,13 @@ class WebServer {
         const matchedRoute = this.matchRoute(url, req.method)
         if (matchedRoute) {
             req.params = matchedRoute.params
-            return matchedRoute.callback(req, res)
+            try {
+                return matchedRoute.callback(req, res)
+            } catch {
+                res.writeHead(500)
+                res.end('500')
+            }
+            return
         }
 
         if (this.nextRequestHandler) {
