@@ -40,6 +40,7 @@ new WebServer(options?: {
     cert?: Buffer | string
     assets?: Array<AssetDir | AssetFile>
     nextRequestHandler?: (req, res) => void
+    onError?: (err: Error, req, res) => void
 })
 ```
 
@@ -50,6 +51,7 @@ new WebServer(options?: {
 | `cert` | `Buffer \| string` | — | TLS certificate (PEM). Required when `https: true` |
 | `assets` | `Array<AssetDir \| AssetFile>` | `[]` | Static file serving entries (see below) |
 | `nextRequestHandler` | `(req, res) => void` | — | Fallback handler for requests that match no route; used for Next.js custom server integration |
+| `onError` | `(err, req, res) => void` | — | Called when a synchronous route handler throws, before the 500 response is sent |
 
 **`AssetDir`** — serve an entire directory under a route prefix:
 ```ts
@@ -152,7 +154,21 @@ Patterns are matched against `req.pathname` (path only, no query string).
 
 ## Error Handling
 
-The library does not expose dedicated error types. Route handler and middleware errors are not caught internally — unhandled exceptions propagate to the Node.js process. Wrap your handlers in try/catch if needed:
+The library does not expose dedicated error types. Synchronous exceptions thrown inside route handlers are caught internally — the server responds with HTTP 500 and body `'500'`. The server continues handling subsequent requests normally.
+
+> **Note:** async route handlers are not awaited. Errors thrown inside an `async` handler after the first `await` are unhandled promise rejections and are **not** caught by the library.
+
+To receive caught errors, pass an `onError` callback:
+
+```js
+const server = new WebServer({
+    onError: (err, req, res) => {
+        console.error(`Route error: ${err.message}`)
+    },
+})
+```
+
+For custom error responses inside a handler, use a try/catch block:
 
 ```js
 server.createRoute({ url: '/api/data', methods: ['GET'] }, async (req, res) => {

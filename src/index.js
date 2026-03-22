@@ -36,6 +36,7 @@ class WebServer {
         this.routes = []
         this.middlewares = []
         this.nextRequestHandler = options?.nextRequestHandler ?? null
+        this.onError = options?.onError ?? null
     }
 
     _setupResponse(res) {
@@ -113,7 +114,8 @@ class WebServer {
             req.params = matchedRoute.params
             try {
                 return matchedRoute.callback(req, res)
-            } catch {
+            } catch (err) {
+                if (this.onError) this.onError(err, req, res)
                 res.writeHead(500)
                 res.end('500')
             }

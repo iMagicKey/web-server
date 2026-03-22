@@ -466,6 +466,44 @@ describe('WebServer', () => {
         })
     })
 
+    describe('onError callback', () => {
+        let server
+        let port
+        let capturedError
+
+        before(async () => {
+            capturedError = null
+            const ws = new WebServer({
+                onError: (err) => {
+                    capturedError = err
+                },
+            })
+            ws.createRoute({ url: '/crash', methods: ['GET'] }, () => {
+                throw new Error('intentional crash')
+            })
+            await new Promise((resolve) =>
+                ws.listen(0, '127.0.0.1', () => {
+                    port = ws.server.address().port
+                    server = ws.server
+                    resolve()
+                })
+            )
+        })
+
+        after(() => new Promise((resolve) => server.close(resolve)))
+
+        it('onError callback is called when route handler throws', async () => {
+            await makeRequest(port, '/crash')
+            expect(capturedError).to.be.instanceOf(Error)
+        })
+
+        it('onError receives the original error object', async () => {
+            capturedError = null
+            await makeRequest(port, '/crash')
+            expect(capturedError.message).to.equal('intentional crash')
+        })
+    })
+
     describe('pathname stored on req', () => {
         let server
         let port
